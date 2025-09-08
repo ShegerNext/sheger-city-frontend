@@ -354,13 +354,13 @@ export default function Page() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button
+              {/* <Button
                 variant="secondary"
                 className="font-medium shadow-sm hover:bg-secondary-light text-white"
                 onClick={() => setIsAddOfficerOpen(true)}
               >
                 Add Officer
-              </Button>
+              </Button> */}
             </div>
           </div>
           {/* <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
