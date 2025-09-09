@@ -18,6 +18,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useUser } from "@clerk/clerk-react";
+import { officerTranslation } from "@/Translation/officerTranslation";
+import { useLanguage } from "@/context/LanguageContext";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API;
 
@@ -115,6 +117,8 @@ function formatDate(iso: string) {
 export default function Page() {
   const { user } = useUser();
   const officerId = user?.id; // Clerk user ID
+  const { lang } = useLanguage();
+  const t = officerTranslation[lang];
 
   const [complaints, setComplaints] = React.useState<Complaint[]>([]);
   const [search, setSearch] = React.useState<string>("");
@@ -166,7 +170,6 @@ export default function Page() {
     fetchComplaints();
   }, [officerId]);
 
-  /* ------------------ Advance Complaint Status ------------------ */
   async function advanceStatus(id: string) {
     const complaint = complaints.find((c) => c.id === id);
     if (!complaint) return;
@@ -256,15 +259,13 @@ export default function Page() {
           <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
-                Officer Dashboard
+                {t.dashboard}
               </h1>
-              <p className="opacity-90">
-                Manage department complaints, and update statuses.
-              </p>
+              <p className="opacity-90">{t.dashboardDescription}</p>
             </div>
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center rounded-md bg-white/10 px-3 py-1 text-sm ring-1 ring-white/30">
-                Role: <span className="ml-1 font-medium">{role}</span>
+                {t.role} <span className="ml-1 font-medium">{role}</span>
               </span>
             </div>
           </div>
@@ -291,10 +292,9 @@ export default function Page() {
         <CardHeader className="flex flex-col gap-4 sm:gap-3">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-primary-dark">
             <div>
-              <CardTitle>Complaints</CardTitle>
+              <CardTitle>{t.complaints}</CardTitle>
               <CardDescription>
-                Sort by urgency, update status. Showing {analytics.total} result
-                {analytics.total === 1 ? "" : "s"}.
+                {t.complaintsDescription(analytics.total)}
               </CardDescription>
             </div>
           </div>
@@ -302,7 +302,7 @@ export default function Page() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div className="lg:col-span-2">
               <Input
-                placeholder="Search by ID, subject, or citizen"
+                placeholder={t.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="transition-colors"
@@ -316,18 +316,30 @@ export default function Page() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-muted-foreground">
-                  <th className="py-2 pl-3 pr-2 text-left font-medium">ID</th>
-                  <th className="py-2 px-2 text-left font-medium">Subject</th>
-                  <th className="py-2 px-2 text-left font-medium">Citizen</th>
-                  <th className="py-2 px-2 text-left font-medium">
-                    Department
+                  <th className="py-2 pl-3 pr-2 text-left font-medium">
+                    {t.table.id}
                   </th>
-                  <th className="py-2 px-2 text-left font-medium">Urgency</th>
-                  <th className="py-2 px-2 text-left font-medium">Status</th>
                   <th className="py-2 px-2 text-left font-medium">
-                    Estimated Completion
+                    {t.table.subject}
                   </th>
-                  <th className="py-2 px-2 text-right font-medium">Actions</th>
+                  <th className="py-2 px-2 text-left font-medium">
+                    {t.table.citizen}
+                  </th>
+                  <th className="py-2 px-2 text-left font-medium">
+                    {t.table.department}
+                  </th>
+                  <th className="py-2 px-2 text-left font-medium">
+                    {t.table.urgency}
+                  </th>
+                  <th className="py-2 px-2 text-left font-medium">
+                    {t.table.status}
+                  </th>
+                  <th className="py-2 px-2 text-left font-medium">
+                    {t.table.estimatedCompletion}
+                  </th>
+                  <th className="py-2 px-2 text-right font-medium">
+                    {t.table.actions}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -391,16 +403,16 @@ export default function Page() {
                           disabled={c.status === "Resolved"}
                           title={
                             c.status === "Resolved"
-                              ? "Already resolved"
+                              ? t.resolved
                               : `Set to ${nextStatus(c.status)}`
                           }
                         >
                           {c.status === "Resolved"
-                            ? "Resolved"
-                            : "Advance Status"}
+                            ? t.resolved
+                            : t.advanceStatus}
                         </Button>
                         <Button size="sm" onClick={() => openView(c.id)}>
-                          View
+                          {t.view}
                         </Button>
                       </div>
                     </td>
@@ -412,10 +424,10 @@ export default function Page() {
                       <div className="mx-auto w-full max-w-md">
                         <div className="rounded-lg border bg-card p-6">
                           <div className="mb-2 text-lg font-semibold">
-                            No complaints found
+                            {t.noComplaintsFound}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Try adjusting search or sorting.
+                            {t.noComplaintsFoundDescription}
                           </p>
                         </div>
                       </div>
@@ -431,7 +443,7 @@ export default function Page() {
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Complaint Details</DialogTitle>
+            <DialogTitle>{t.modal.complaintDetails}</DialogTitle>
           </DialogHeader>
           {selectedComplaint ? (
             <div className="space-y-4">
@@ -446,7 +458,7 @@ export default function Page() {
                   />
                 ) : (
                   <div className="flex h-40 w-full items-center justify-center text-xs text-muted-foreground sm:h-52">
-                    No image provided
+                    {t.modal.noImage}
                   </div>
                 )}
               </div>
@@ -483,14 +495,16 @@ export default function Page() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-md border p-3">
-                  <div className="text-xs text-muted-foreground">Citizen</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t.modal.citizen}
+                  </div>
                   <div className="text-sm font-medium">
                     {selectedComplaint.citizenName}
                   </div>
                 </div>
                 <div className="rounded-md border p-3">
                   <div className="text-xs text-muted-foreground">
-                    Estimated (days)
+                    {t.modal.estimatedDays}
                   </div>
                   <div className="text-sm font-medium">
                     {selectedComplaint.estimatedDays &&
@@ -503,34 +517,15 @@ export default function Page() {
                 </div>
                 <div className="rounded-md border p-3">
                   <div className="text-xs text-muted-foreground">
-                    Assigned Officer
+                    {t.modal.assignedOfficer}
                   </div>
                   <div className="text-sm font-medium">
                     {selectedComplaint.assignedOfficerEmail || "-"}
                   </div>
                 </div>
-                {/* <div className="rounded-md border p-3">
-                  <div className="text-xs text-muted-foreground">Urgency</div>
-                  <div className="text-sm font-medium mb-2">
-                    {selectedComplaint.urgencyScore}/100
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted">
-                    <div
-                      className="h-1.5 rounded-full bg-primary"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.max(0, selectedComplaint.urgencyScore)
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div> */}
               </div>
 
-              <div className="text-xs text-muted-foreground">
-                Tip: You can advance status here or from the table.
-              </div>
+              <div className="text-xs text-muted-foreground">{t.modal.tip}</div>
             </div>
           ) : null}
           <DialogFooter className="gap-2 sm:gap-0">
@@ -541,16 +536,18 @@ export default function Page() {
                 disabled={selectedComplaint.status === "Resolved"}
                 title={
                   selectedComplaint.status === "Resolved"
-                    ? "Already resolved"
+                    ? t.resolved
                     : `Set to ${nextStatus(selectedComplaint.status)}`
                 }
               >
                 {selectedComplaint.status === "Resolved"
-                  ? "Resolved"
-                  : "Advance Status"}
+                  ? t.resolved
+                  : t.advanceStatus}
               </Button>
             )}
-            <Button onClick={() => setIsViewOpen(false)}>Close</Button>
+            <Button onClick={() => setIsViewOpen(false)}>
+              {t.modal.close}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
