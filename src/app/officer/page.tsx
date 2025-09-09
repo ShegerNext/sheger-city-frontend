@@ -17,6 +17,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useUser } from "@clerk/clerk-react";
+
+const BASE_URL = process.env.NEXT_PUBLIC_API;
 
 type Status = "Open" | "In Progress" | "Resolved";
 
@@ -36,67 +39,21 @@ type Complaint = {
   description?: string | null;
 };
 
-const departments = ["Sanitation", "Roads", "Water", "Electricity", "Parks"];
+// Define the API response type
+type ApiComplaint = {
+  _id: string;
+  category: string;
+  userId: string;
+  urgency: "high" | "medium" | "low";
+  status: "open" | "in_progress" | "resolved";
+  createdAt: string;
+  estimatedTime?: string;
+  assigned_officer_id?: string;
+  description?: string;
+};
+
 const role = "Electricity-Officer";
-const officerId = "officer-1";
 
-// Dummy assigned complaints for this officer (simulate API result)
-const assignedComplaints: Complaint[] = [
-  {
-    id: "CMP-1023",
-    subject: "Transformer outage near Piassa",
-    citizenName: "N. Gebremedhin",
-    department: "Electricity",
-    urgencyScore: 86,
-    status: "Open",
-    createdAt: "2025-09-05T07:20:00Z",
-    estimatedDays: 3,
-    estimatedCompletionDate: new Date(
-      Date.now() + 3 * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    assignedOfficerId: officerId,
-    assignedOfficerEmail: "officer.electricity@sheger.gov",
-    imageUrl: "/images/landingPageSlidingWindow/addis1.jpg",
-    description:
-      "Multiple households reported a transformer failure near Piassa. Power is out on the north block. Residents noted a loud pop before outage.",
-  },
-  {
-    id: "CMP-1041",
-    subject: "Streetlights flickering at Sar Bet",
-    citizenName: "B. Mulu",
-    department: "Electricity",
-    urgencyScore: 64,
-    status: "In Progress",
-    createdAt: "2025-09-04T19:10:00Z",
-    estimatedDays: 2,
-    estimatedCompletionDate: new Date(
-      Date.now() + 2 * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    assignedOfficerId: officerId,
-    assignedOfficerEmail: "officer.electricity@sheger.gov",
-    imageUrl: null,
-    description:
-      "Several poles report intermittent flicker around 8–10pm. Likely a ballast or timer controller issue.",
-  },
-  {
-    id: "CMP-1087",
-    subject: "Power surge damaging appliances in Gerji",
-    citizenName: "S. Daniel",
-    department: "Electricity",
-    urgencyScore: 92,
-    status: "Open",
-    createdAt: "2025-09-03T11:45:00Z",
-    estimatedDays: null,
-    estimatedCompletionDate: "",
-    assignedOfficerId: officerId,
-    assignedOfficerEmail: "officer.electricity@sheger.gov",
-    imageUrl: "/images/landingPageSlidingWindow/addis2.jpg",
-    description:
-      "Reports of repeated voltage spikes causing device failures. Needs urgent inspection and possible line regulator calibration.",
-  },
-];
-
-/* ------------------ Card Config ------------------ */
 const analyticsCards = (analytics: {
   total: number;
   open: number;
@@ -147,12 +104,6 @@ function statusClass(s: Status) {
   return "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300";
 }
 
-// function urgencyColor(score: number) {
-//   if (score >= 80) return "text-red-600";
-//   if (score >= 60) return "text-amber-600";
-//   return "text-emerald-600";
-// }
-
 function formatDate(iso: string) {
   try {
     return new Date(iso).toLocaleString();
@@ -162,19 +113,104 @@ function formatDate(iso: string) {
 }
 
 export default function Page() {
-  const [complaints, setComplaints] =
-    React.useState<Complaint[]>(assignedComplaints);
-  // const [departmentFilter, setDepartmentFilter] = React.useState<string>("All");
+  const { user } = useUser();
+  const officerId = user?.id; // Clerk user ID
+
+  const [complaints, setComplaints] = React.useState<Complaint[]>([]);
   const [search, setSearch] = React.useState<string>("");
-  const [sortByUrgencyDesc] =
-    React.useState<boolean>(true);
+  const [sortByUrgencyDesc] = React.useState<boolean>(true);
   const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [viewComplaintId, setViewComplaintId] = React.useState<string | null>(
     null
   );
-  // const [activeTab, setActiveTab] = React.useState<"complaints" | "officers">(
-  //   "complaints"
-  // );
+
+  React.useEffect(() => {
+    if (!officerId) return;
+    console.log(officerId);
+    const fetchComplaints = async () => {
+      try {
+        const res = await fetch(
+          `${BASE_URL}/complaints/officer?id=${officerId}`
+        );
+        const data: ApiComplaint[] = await res.json();
+        const mapped: Complaint[] = data.map((c) => ({
+          id: c._id,
+          subject: c.category,
+          citizenName: c.userId ?? "Unknown",
+          department: c.category,
+          urgencyScore:
+            c.urgency === "high" ? 90 : c.urgency === "medium" ? 70 : 40,
+          status:
+            c.status === "open"
+              ? "Open"
+              : c.status === "in_progress"
+              ? "In Progress"
+              : "Resolved",
+          createdAt: c.createdAt,
+          estimatedDays: c.estimatedTime
+            ? Math.ceil(
+                (new Date(c.estimatedTime).getTime() -
+                  new Date(c.createdAt).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            : null,
+          estimatedCompletionDate: c.estimatedTime || "",
+          assignedOfficerId: c.assigned_officer_id,
+          description: c.description,
+        }));
+        setComplaints(mapped);
+      } catch (err) {
+        console.error("Error fetching complaints", err);
+      }
+    };
+    fetchComplaints();
+  }, [officerId]);
+
+  /* ------------------ Advance Complaint Status ------------------ */
+  async function advanceStatus(id: string) {
+    const complaint = complaints.find((c) => c.id === id);
+    if (!complaint) return;
+
+    const newStatus = nextStatus(complaint.status);
+
+    try {
+      await fetch(`${BASE_URL}/complaints/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status:
+            newStatus === "Open"
+              ? "open"
+              : newStatus === "In Progress"
+              ? "in_progress"
+              : "resolved",
+        }),
+      });
+
+      setComplaints((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, status: newStatus } : c))
+      );
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
+  }
+
+  /* ------------------ View Complaint ------------------ */
+  async function openView(id: string) {
+    setViewComplaintId(id);
+    try {
+      // Fixed the API endpoint - removed the "/api" prefix
+      const res = await fetch(`${BASE_URL}/complaints/${id}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      console.log("Complaint detail:", data);
+    } catch (err) {
+      console.error("Failed to fetch complaint details", err);
+    }
+    setIsViewOpen(true);
+  }
 
   const visibleComplaints = React.useMemo(() => {
     let list = complaints;
@@ -196,7 +232,6 @@ export default function Page() {
   }, [complaints, search, sortByUrgencyDesc]);
 
   const analytics = React.useMemo(() => {
-    
     const total = visibleComplaints.length;
     const open = visibleComplaints.filter((c) => c.status === "Open").length;
     const inProg = visibleComplaints.filter(
@@ -205,38 +240,13 @@ export default function Page() {
     const resolved = visibleComplaints.filter(
       (c) => c.status === "Resolved"
     ).length;
-    const avgUrgency =
-      total === 0
-        ? 0
-        : Math.round(
-            visibleComplaints.reduce((s, c) => s + c.urgencyScore, 0) / total
-          );
-    const byDept = departments.map((d) => ({
-      dept: d,
-      count: visibleComplaints.filter((c) => c.department === d).length,
-    }));
-    return { total, open, inProg, resolved, avgUrgency, byDept };
+    return { total, open, inProg, resolved };
   }, [visibleComplaints]);
-
-  function advanceStatus(id: string) {
-    setComplaints((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, status: nextStatus(c.status) } : c
-      )
-    );
-  }
-
-  function openView(id: string) {
-    setViewComplaintId(id);
-    setIsViewOpen(true);
-  }
 
   const selectedComplaint = React.useMemo(
     () => complaints.find((c) => c.id === viewComplaintId) || null,
     [complaints, viewComplaintId]
   );
-
-  
 
   return (
     <div className="px-6 py-8 space-y-6 text-primary-dark">
