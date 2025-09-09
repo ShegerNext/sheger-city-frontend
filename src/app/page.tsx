@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Send, Brain, Database, Bell } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
+import { landingTranslation } from "@/Translation/landingTranslation";
 
 const images = [
   "/images/landingPageSlidingWindow/addis1.jpg",
@@ -50,6 +52,8 @@ export default function LandingPage() {
   const [current, setCurrent] = useState(0);
   const [active, setActive] = useState(0);
   const howItWorksRef = useRef<HTMLDivElement>(null);
+  const { lang } = useLanguage();
+  const t = landingTranslation[lang];
 
   // --- Image carousel ---
   const nextSlide = () => {
@@ -81,8 +85,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 text-gray-900 font-sans">
-    
-
       {/* Hero Section */}
       <section className="relative h-[90vh] flex flex-col justify-center items-center text-center px-6">
         <motion.h2
@@ -91,9 +93,9 @@ export default function LandingPage() {
           transition={{ duration: 0.8 }}
           className="text-4xl md:text-6xl font-extrabold leading-tight max-w-3xl mb-6"
         >
-          Report City Issues.{" "}
+          {t.heroTitle.split(". ")[0]}.{" "}
           <span className="bg-gradient-to-r from-primary-dark to-primary-light text-transparent bg-clip-text">
-            Make Your Voice Heard
+            {t.heroTitle.split(". ")[1]}
           </span>
         </motion.h2>
 
@@ -103,8 +105,7 @@ export default function LandingPage() {
           transition={{ duration: 1 }}
           className="text-lg md:text-xl text-gray-600 max-w-2xl mb-10"
         >
-          Fast, easy, and transparent complaint reporting for a smarter Addis
-          Ababa.
+          {t.heroSubtitle}
         </motion.p>
 
         {/* CTA Buttons */}
@@ -114,12 +115,11 @@ export default function LandingPage() {
           transition={{ duration: 1.2 }}
           className="flex space-x-4 mb-12"
         >
-          
           <button
             onClick={scrollToHowItWorks}
             className="px-7 py-3 rounded-xl border border-primary bg-white/60 backdrop-blur-sm text-primary font-semibold shadow hover:scale-105 transition-transform"
           >
-            Learn How It Works
+            {t.ctaButton}
           </button>
         </motion.div>
 
@@ -179,7 +179,7 @@ export default function LandingPage() {
         <Card className="w-full max-w-5xl rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
           <CardHeader className="text-center pb-10">
             <CardTitle className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-primary-dark to-primary-light bg-clip-text text-transparent">
-              How It Works
+              {t.howItWorksTitle}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -194,13 +194,15 @@ export default function LandingPage() {
               >
                 <div className="flex items-center space-x-4">
                   <ActiveIcon className="w-10 h-10 text-primary" />
-                  <h3 className="text-2xl font-bold">{steps[active].title}</h3>
+                  <h3 className="text-2xl font-bold">
+                    {t.steps[active].title}
+                  </h3>
                 </div>
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  {steps[active].description}
+                  {t.steps[active].description}
                 </p>
                 <div className="flex space-x-2 mt-4">
-                  {steps.map((_, i) => (
+                  {t.steps.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setActive(i)}
@@ -216,7 +218,7 @@ export default function LandingPage() {
 
               {/* Step List / Navigation */}
               <div className="flex flex-col space-y-4">
-                {steps.map((step, i) => (
+                {t.steps.map((step, i) => (
                   <Button
                     key={i}
                     onClick={() => setActive(i)}
@@ -228,7 +230,10 @@ export default function LandingPage() {
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <step.icon className="w-5 h-5" />
+                      {(() => {
+                        const Icon = steps[i].icon; // assign icon to a variable
+                        return <Icon className="w-5 h-5" />;
+                      })()}
                       <span className="font-semibold">{step.title}</span>
                     </div>
                   </Button>
